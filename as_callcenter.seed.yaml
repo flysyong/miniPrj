@@ -1,7 +1,9 @@
 goal: C:\AX-SDS\miniPjt에 Python으로 고객용 전자제품 AS 접수 챗봇 데모를 만든다. 챗봇은 접수를 받고, 증상 기반 RAG로
   상담하며 자가 해결 분기를 둔다. 해결되지 않으면 MCP 도구로 규칙에 따라 기사를 배정하고, 고객이 방문 일정을 승인(HITL)하면 예약을 확정한다.
-  화면은 Streamlit 채팅이며, 같은 그래프를 쓰는 CLI로도 시연할 수 있어야 한다. 강의 기술(LangChain, RAG, LangGraph,
-  MCP, 메모리, 가드레일, 평가)을 활용하고, eval.py로 RAG 정확도·기사 배정 정확도·가드레일 차단율을 측정한다.
+  표준 API(POST /query → answer·contexts·trace)로 같은 그래프를 호출할 수 있고, 화면은 Streamlit 채팅이며 CLI로도 시연할
+  수 있어야 한다. 강의 기술(LangChain, RAG, LangGraph, MCP, 메모리, 가드레일, 평가)을 활용하고, 제출 규약의 폴더 구조(src/,
+  data/, evaluation/)를 따른다. evaluation/test_queries.csv 인-아웃 세트 통과율, RAGAS 4개 지표, 기사 배정 정확도, 가드레일
+  차단율을 측정한다.
 task_type: code
 brownfield_context:
   project_type: brownfield
@@ -63,7 +65,26 @@ brownfield_context:
   - fastmcp / mcp
   - streamlit
   - python-dotenv
+  - fastapi / uvicorn / httpx
+  - ragas
 constraints:
+- '제출 규약 폴더 구조: src/(agent.py=메인 그래프, tools.py=도메인 도구, retriever.py=RAG 파이프라인, api.py, 기타), data/(FAQ·기사·접수
+  이력·평가셋 데이터), evaluation/(test_queries.csv, round1_report.md, round2_report.md), 루트에 SERVICE.md, README.md,
+  requirements.txt, run.sh'
+- 'API 표준 규약: POST /query, Content-Type application/json, Body {"question": "..."}. 응답은 {"answer": str, "contexts":
+  [{"doc_id", "text"}], "trace": [{"step", "input", "output"}]}. contexts에는 검색된 FAQ의 doc_id와 본문, trace에는 실행된
+  그래프 노드·도구 호출을 순서대로 담음'
+- 'API 다회차 대화(HITL 승인 등)는 Body에 선택 필드 thread_id를 함께 보내 이어감. thread_id가 없으면 새 대화로 처리하며, 응답 형식은
+  표준 규약 그대로 유지'
+- 'MCP 도구 이름은 test_queries.csv의 expected_tools와 일치해야 함: search_faq, find_open_ticket, assign_technician,
+  find_earliest_date, save_ticket, update_ticket_status'
+- 'evaluation/test_queries.csv 스키마: 컬럼 id, category, input, expected_traits, forbidden, expected_tools, note (7개). category는
+  positive/negative/edge/guardrail. 필드 내 다중 값은 세미콜론 구분. 20건(positive 8, negative 4, edge 5, guardrail 3)'
+- 인-아웃 케이스 판정 = LLM-as-Judge가 expected_traits 모두 충족 + forbidden 미포함을 확인하고, expected_tools는 trace의 도구
+  호출로 확인. 셋 다 만족하면 통과
+- '완성 기준: 인-아웃 세트 90% 이상 통과(20건 중 18건 이상). run_eval.py는 통과 건수와 함께 목표 달성 여부(PASS/FAIL)를 출력'
+- '더미 데이터는 test_queries.csv 케이스가 의도대로 재현되도록 구성(예: 010-5555-0001 진행 중 냉장고 접수, 010-8888-9999 방문완료
+  냉장고 접수, 010-4444-5555 진행 중 접수, 부산 해운대구 세탁기 2026-11-15 가능 기사 없음)'
 - Python 3.14, AWS Bedrock 사용
 - 임베딩 amazon.titan-embed-text-v2:0, 메인 LLM us.anthropic.claude-sonnet-4-5-20250929-v1:0,
   LLM 판정·가드 검사 global.anthropic.claude-haiku-4-5-20251001-v1:0
@@ -89,13 +110,16 @@ constraints:
 - 동일 고객이 동일 제품으로 방문 완료 전(진행 중)인 접수가 있으면 새 접수를 막고 기존 접수를 안내. 방문 완료된 건은 재접수 허용
 - 메모리 = 체크포인터(대화 중 기억) + 접수 이력 JSON 저장(이중 접수 확인용). 고객별 장기 기억은 제외
 - 고객 식별은 전화번호. 화면·로그에는 010-****-1234처럼 마스킹해 표시
-- 평가 항목은 RAG 답변 정확도(LLM-as-Judge), 기사 배정 정확도, 가드레일 차단율(오차단률 포함) 3가지. 슬롯 추출 정확도는 제외
-- 평가 합격 목표치는 정하지 않고 항목별 점수만 측정·출력
-- '평가셋은 직접 작성한 JSON: RAG 20건(질문+정답 조치), 기사 배정 15건(지역·제품·날짜+정답 기사 ID), 가드레일 30건(차단
-  20 + 정상 10)'
-- eval.py 한 번 실행으로 항목별 점수를 콘솔에 출력하고 건별 결과를 CSV로 저장
+- 평가 항목은 인-아웃 세트 통과율, RAGAS(context_recall, context_precision, faithfulness, answer_relevancy), 기사 배정 정확도,
+  가드레일 차단율(오차단률 포함) 4가지. 슬롯 추출 정확도는 제외
+- RAGAS 평가자 LLM·임베딩도 Bedrock(Haiku 4.5, Titan v2)을 LangChain 래퍼로 연결해 사용
+- '보조 평가셋은 data/에 직접 작성한 JSON: RAG 20건(질문+정답 조치, RAGAS reference), 기사 배정 15건(지역·제품·날짜+정답 기사 ID),
+  가드레일 30건(차단 20 + 정상 10)'
+- evaluation/run_eval.py 한 번 실행으로 항목별 점수를 콘솔에 출력하고 건별 결과를 evaluation/results/ 아래 CSV로 저장
 - LangSmith 등 외부 평가/트레이싱 도구는 사용하지 않음
-- 필수 범위 = 5개 데모 시나리오 동작 + eval.py 3개 항목 측정 + 5개 시나리오를 화면 없이 자동 실행·검증하는 scenarios.py
+- 필수 범위 = 5개 데모 시나리오 동작 + POST /query API + run_eval.py 4개 항목 측정 + 5개 시나리오를 화면 없이 자동 실행·검증하는
+  src/scenarios.py + round1_report.md
+- round2_report.md(개선 후 2차 평가)는 이번 Seed 실행 범위가 아니며, 1차 평가 이후 별도로 작성
 - '시간이 부족할 때 줄이는 순서: 결과 보고서 분석 깊이(점수표만) → BM25 하이브리드 검색(벡터 검색만) → 접수 이력 화면 표시 → Streamlit
   UI(같은 그래프를 쓰는 CLI 데모로 대체)'
 acceptance_criteria:
@@ -103,17 +127,37 @@ acceptance_criteria:
     기사·날짜를 고객이 승인) ③3회 거절 후 ''대기'' 저장과 ''추후 연락'' 종료 ④진행 중 접수 중복 차단과 기존 접수 안내 ⑤가드레일
     차단 후 대화 계속. 출력에 전화번호는 마스킹되어 나온다'
   semantic_ac_key: ac_3bdf9f3912307fa6
-  verify_command: t=$(mktemp -d) && cp -r . "$t"/ && cd "$t" && python scenarios.py
+  verify_command: t=$(mktemp -d) && cp -r . "$t"/ && cd "$t" && python -m src.scenarios
   expected_artifacts:
-  - scenarios.py
-- description: eval.py 한 번 실행으로 RAG 답변 정확도(LLM-as-Judge), 기사 배정 정확도, 가드레일 차단율·오차단률이
-    콘솔에 출력되고, 건별 결과 CSV가 저장된다. 평가셋 규모는 RAG 20건, 배정 15건, 가드레일 30건이다
+  - src/scenarios.py
+- description: 'POST /query에 {"question": "..."}을 보내면 표준 규약 형식으로 응답한다. answer는 문자열, contexts의 각 항목은
+    doc_id·text, trace의 각 항목은 step·input·output을 가진다. FAQ 질문이면 contexts가 비어 있지 않다'
+  semantic_ac_key: ac_api_query_contract
+  verify_command: python -c "from fastapi.testclient import TestClient; from src.api import app;
+    r=TestClient(app).post('/query',json={'question':'TV 전원이 안 켜져요'}); assert r.status_code==200;
+    b=r.json(); assert isinstance(b['answer'],str) and b['contexts'] and b['trace'];
+    assert all({'doc_id','text'}<=c.keys() for c in b['contexts']); assert all({'step','input','output'}<=t.keys()
+    for t in b['trace']); print('API_OK')"
+  expected_artifacts:
+  - src/api.py
+  output_assertion: API_OK
+- description: evaluation/test_queries.csv가 7개 컬럼 스키마를 따르고 10건 이상이며, category는 positive/negative/edge/guardrail
+    중 하나다
+  semantic_ac_key: ac_test_queries_schema
+  verify_command: python -c "import csv; rows=list(csv.DictReader(open('evaluation/test_queries.csv',encoding='utf-8')));
+    assert list(rows[0].keys())==['id','category','input','expected_traits','forbidden','expected_tools','note'];
+    assert len(rows)>=10; assert all(r['category'] in ('positive','negative','edge','guardrail') and r['input']
+    and r['expected_traits'] for r in rows); print('SCHEMA_OK')"
+  expected_artifacts:
+  - evaluation/test_queries.csv
+  output_assertion: SCHEMA_OK
+- description: evaluation/run_eval.py 한 번 실행으로 인-아웃 세트 통과 건수(N/20)와 카테고리별 통과율, RAGAS 4개 지표,
+    기사 배정 정확도(15건), 가드레일 차단율·오차단률(30건)이 콘솔에 출력되고, 건별 결과 CSV가 evaluation/results/에 저장된다
   semantic_ac_key: ac_67f983102ba35248
-  verify_command: t=$(mktemp -d) && cp -r . "$t"/ && cd "$t" && find . -name '*.csv'
-    -delete && python eval.py && python -c "import glob; assert glob.glob('**/*.csv',
-    recursive=True); print('CSV_OK')"
+  verify_command: t=$(mktemp -d) && cp -r . "$t"/ && cd "$t" && rm -rf evaluation/results && python
+    evaluation/run_eval.py && python -c "import glob; assert glob.glob('evaluation/results/*.csv'); print('CSV_OK')"
   expected_artifacts:
-  - eval.py
+  - evaluation/run_eval.py
   output_assertion: CSV_OK
 - description: Streamlit 채팅 화면에서 같은 5개 시나리오를 끝까지 시연할 수 있다. 방문 일정 확정은 고객 승인(HITL)으로
     이루어지고, 화면에 표시되는 전화번호는 마스킹된다
@@ -128,20 +172,25 @@ acceptance_criteria:
     any(i in p.read_text(encoding='utf-8',errors='ignore') for i in ids)]; assert
     len(hits)<=1, hits; print('CONFIG_OK')"
   output_assertion: CONFIG_OK
-- description: README에 설치·실행 방법, 구조도, 사용 기술 목록, 평가 실행 방법이 있고, 평가 점수와 분석을 담은 Markdown
-    결과 보고서가 함께 있다
+- description: README가 제출 템플릿 항목을 따르며 실행 방법, RAGAS 4개 지표 값, 1차 통과율, 핵심 코드 위치가 실제 값으로
+    채워져 있고(0.XX·{실행 방법} 자리표시 없음), evaluation/round1_report.md에 1차 평가 점수와 실패 케이스 분석이 있다
   semantic_ac_key: ac_62a1a1f0ec9bb5c5
   verify_command: python -c "import pathlib; r=pathlib.Path('README.md').read_text(encoding='utf-8');
-    assert 'eval.py' in r and 'streamlit' in r.lower(); reps=[p for p in pathlib.Path('.').glob('*.md')
-    if p.name!='README.md']; assert reps; print('DOCS_OK')"
+    assert all(h in r for h in ['## 실행 방법','## RAGAS 평가 결과','## 인-아웃 세트 통과율','## 핵심 코드 위치']);
+    assert '{실행 방법}' not in r and '0.XX' not in r; rep=pathlib.Path('evaluation/round1_report.md').read_text(encoding='utf-8');
+    assert len(rep)>200; print('DOCS_OK')"
   expected_artifacts:
   - README.md
+  - evaluation/round1_report.md
   output_assertion: DOCS_OK
 assumptions:
-- eval.py, scenarios.py, README.md는 C:\AX-SDS\miniPjt 루트에 둔다
-- 모델 설정 파일은 .env와 커밋용 .env.example 형태이며, 모델 ID 문자열을 담는 Python 모듈은 설정 모듈 하나뿐이다
-- '결과 보고서는 README.md가 아닌 별도 Markdown 파일(예: REPORT.md)이다'
-- scenarios.py는 기본적으로 실제 Bedrock을 호출하며, 시나리오 하나라도 실패하면 0이 아닌 종료 코드로 끝난다
+- 소스는 src/ 패키지(python -m src.xxx로 실행), 평가는 evaluation/run_eval.py, 데이터는 data/에 둔다
+- 모델 설정 파일은 .env와 커밋용 .env.example 형태이며, 모델 ID 문자열을 담는 Python 모듈은 설정 모듈(src/config.py) 하나뿐이다
+- MCP 서버는 src/mcp_server.py, Streamlit은 src/app.py, CLI는 src/cli.py이며 run.sh는 API 서버(uvicorn src.api:app)를 실행한다
+- SERVICE.md 템플릿 4번의 'test_queries.json' 문구는 제출 템플릿 원문이라 그대로 두고, 실제 파일은 evaluation/test_queries.csv다
+- README 2차 통과율·개선폭·트라이앤에러 회고는 round2 이후 작성하므로 이번 실행에서는 자리표시를 허용한다
+- ragas가 Python 3.14에서 설치·실행되지 않으면 같은 4개 지표를 LLM-as-Judge로 직접 계산하는 대체 구현을 쓰고 README에 밝힌다
+- src/scenarios.py는 기본적으로 실제 Bedrock을 호출하며, 시나리오 하나라도 실패하면 0이 아닌 종료 코드로 끝난다
 - 기사 배정은 결정적 규칙이므로 배정 평가 15건은 100% 정답일 것으로 예상하지만, 이것은 합격 기준이 아니다
 - 실행·검증 명령은 Bash에서 python 명령이 Python 3.14를 가리킨다고 가정한다
 - MCP 서버는 day7_practice처럼 FastMCP 서버(mcp_server.py)로 구성한다
@@ -209,29 +258,40 @@ ontology_schema:
     required: true
   - name: eval_scores
     type: object
-    description: RAG 정확도, 배정 정확도, 가드 차단율·오차단률
+    description: 인-아웃 통과율, RAGAS 4개 지표, 배정 정확도, 가드 차단율·오차단률
+    required: true
+  - name: query_response
+    type: object
+    description: 'POST /query 응답(answer, contexts[doc_id, text], trace[step, input, output])'
+    required: true
+  - name: test_query_case
+    type: object
+    description: 인-아웃 케이스(id, category, input, expected_traits, forbidden, expected_tools, note)
     required: true
 evaluation_principles:
 - name: scenario_completeness
-  description: 5개 데모 시나리오가 그래프 수준(scenarios.py)과 UI/CLI에서 끝까지 동작한다
-  weight: 0.3
+  description: 5개 데모 시나리오가 그래프 수준(src/scenarios.py)과 UI/CLI에서 끝까지 동작한다
+  weight: 0.25
+- name: submission_compliance
+  description: 폴더 구조, POST /query 응답 형식, test_queries.csv 스키마, SERVICE.md·README.md 템플릿이 제출 규약과 일치한다
+  weight: 0.2
 - name: rule_fidelity
   description: 배정 규칙, 재제안 최대 3회, 대기 저장, 중복 접수 차단, 가드 차단 범위가 인터뷰 결정과 정확히 일치한다
-  weight: 0.25
-- name: measurable_evaluation
-  description: eval.py가 3개 항목 점수와 건별 CSV를 재현 가능하게 만든다
   weight: 0.2
+- name: measurable_evaluation
+  description: run_eval.py가 4개 항목 점수와 건별 CSV를 재현 가능하게 만든다
+  weight: 0.15
 - name: simplicity
   description: 초보자가 이해할 수 있는 단순한 단일 그래프 구조이며, 강의 실습 코드 패턴을 재사용한다
-  weight: 0.15
+  weight: 0.1
 - name: privacy_and_config
   description: PII와 전화번호가 마스킹되고, 모델 ID는 설정 한 곳에서 바뀐다
   weight: 0.1
 exit_conditions:
 - name: all_required_done
   description: 필수 범위가 모두 충족됨
-  criteria: scenarios.py 5개 시나리오 통과 + eval.py 3개 항목 점수 출력·CSV 저장 + README와 결과 보고서
-    존재
+  criteria: src/scenarios.py 5개 시나리오 통과 + POST /query 규약 응답 + run_eval.py 4개 항목 점수 출력·CSV 저장
+    + README(템플릿)와 round1_report.md 존재
 - name: time_box_reached
   description: 1일 시간 한도 도달
   criteria: 정해진 축소 순서(보고서 깊이 → BM25 → 이력 화면 → Streamlit을 CLI로 대체)를 적용한 뒤에도 필수 범위가
@@ -241,8 +301,8 @@ exit_conditions:
   criteria: 설정에서 다른 Bedrock 모델로 바꿔도 실행할 수 없으면 중단하고 보고
 metadata:
   seed_id: seed_e2979bb9814a
-  version: 1.1.0
-  revision_note: 'refinement pass 1 - 적용: C1(중복 AC 2개 삭제), C6(입력 형식 검증), C7(temperature=0, FAQ 데이터 구분), C8(UI 로직 금지 명확화) / 유지: C2, C3, C4, C5'
+  version: 1.2.0
+  revision_note: 'v1.2.0 - 제출 규약 반영: 폴더 구조(src/data/evaluation), POST /query API, test_queries.csv 인-아웃 세트, RAGAS, round1 보고서, README 템플릿. v1.1.0 - refinement pass 1 (C1, C6, C7, C8 적용)'
   created_at: '2026-11-11T02:38:27.101233Z'
   ambiguity_score: 0.1475
   gate_forced: false
