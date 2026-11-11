@@ -1,0 +1,254 @@
+goal: C:\AX-SDS\miniPjt에 Python으로 고객용 전자제품 AS 접수 챗봇 데모를 만든다. 챗봇은 접수를 받고, 증상 기반 RAG로
+  상담하며 자가 해결 분기를 둔다. 해결되지 않으면 MCP 도구로 규칙에 따라 기사를 배정하고, 고객이 방문 일정을 승인(HITL)하면 예약을 확정한다.
+  화면은 Streamlit 채팅이며, 같은 그래프를 쓰는 CLI로도 시연할 수 있어야 한다. 강의 기술(LangChain, RAG, LangGraph,
+  MCP, 메모리, 가드레일, 평가)을 활용하고, eval.py로 RAG 정확도·기사 배정 정확도·가드레일 차단율을 측정한다.
+task_type: code
+brownfield_context:
+  project_type: brownfield
+  context_references:
+  - path: C:\AX-SDS\miniPjt
+    role: primary
+    summary: 구현 대상 프로젝트 폴더(Python, AWS Bedrock)
+  - path: day2_practice/chunking_md.py
+    role: reference
+    summary: Markdown 청킹 예제
+  - path: day2_practice/hybrid.py
+    role: reference
+    summary: BM25+kiwipiepy 하이브리드 검색 예제
+  - path: day2_practice/embedding.py
+    role: reference
+    summary: Titan v2 임베딩 예제
+  - path: day2_practice/vectorstore.py
+    role: reference
+    summary: Chroma 벡터스토어(Titan v2) 예제
+  - path: day3_practice/conditional.py
+    role: reference
+    summary: LangGraph 조건 분기 예제
+  - path: day5_practice/guards_input.py
+    role: reference
+    summary: 정규식 규칙 + LLM 인젝션 검사 입력 가드
+  - path: day5_practice/masking_middleware.py
+    role: reference
+    summary: PII 마스킹 미들웨어
+  - path: day5_practice/attack_set.json
+    role: reference
+    summary: 인젝션 공격셋
+  - path: day5_practice/normal_set.json
+    role: reference
+    summary: 정상 입력셋
+  - path: day7_practice/make_data.py
+    role: reference
+    summary: 가상 JSON 데이터 생성 패턴
+  - path: day7_practice/mcp_server.py
+    role: reference
+    summary: FastMCP로 JSON 데이터를 도구로 노출하는 패턴(Sonnet 4.5/Haiku 4.5 사용)
+  - path: guide.txt
+    role: reference
+    summary: 사용 가능한 Bedrock 모델 목록
+  existing_patterns:
+  - make_data.py로 가상 JSON 데이터를 만들고 FastMCP mcp_server.py로 도구 노출
+  - Markdown 청킹 + Chroma 벡터스토어(Titan v2), 선택적으로 BM25+kiwipiepy 하이브리드 검색
+  - LangGraph 조건 분기 노드로 흐름 제어
+  - 정규식 규칙 + LLM 기반 입력 가드
+  - PII 마스킹 미들웨어
+  - 공격셋/정상셋 JSON으로 가드 평가
+  existing_dependencies:
+  - langchain
+  - langgraph
+  - langchain-aws (Bedrock)
+  - boto3
+  - chromadb / langchain-chroma
+  - rank_bm25
+  - kiwipiepy
+  - fastmcp / mcp
+  - streamlit
+  - python-dotenv
+constraints:
+- Python 3.14, AWS Bedrock 사용
+- 임베딩 amazon.titan-embed-text-v2:0, 메인 LLM us.anthropic.claude-sonnet-4-5-20250929-v1:0,
+  LLM 판정·가드 검사 global.anthropic.claude-haiku-4-5-20251001-v1:0
+- 모델 ID는 코드에 고정하지 않고 설정(.env 등) 한 곳에서 바꿀 수 있어야 함
+- 학습용 데모 수준이며 개념과 구현이 단순해야 함
+- 파일럿 프로젝트로 1일 이내에 구현 가능한 범위
+- 고객이 직접 쓰는 AS 접수 챗봇이며 UI는 Streamlit 웹 채팅
+- UI 파일(Streamlit/CLI)에는 배정·라우팅 로직이 없고 그래프만 호출하며, Streamlit 없이 CLI로도 같은 시나리오를 시연할 수 있어야 함
+- LLM 호출은 temperature=0으로 고정하고, 검색된 FAQ 본문은 지시문이 아닌 데이터로 구분(구분자로 감싸기)해 프롬프트에 넣음
+- 전화번호 형식(010-XXXX-XXXX) 또는 날짜 형식(YYYY-MM-DD)이 틀리면 다시 입력을 요청함
+- 하나의 LangGraph 그래프(접수→상담→배정→예약)로 구현. Supervisor 멀티에이전트는 선택 확장
+- HITL 승인 = 고객이 방문 일정(기사·날짜)을 최종 확정하는 단계
+- RAG 지식 문서는 직접 작성한 가상 증상-조치 FAQ Markdown(제품군별, 30~50건). 실제 제조사 PDF 매뉴얼은 쓰지 않음
+- '자가 해결 분기: 조치 안내 후 해결 여부를 묻고, 해결되면 접수 종료, 안 되면 기사 배정으로 진행'
+- '기사 배정 규칙: 고객 지역 일치 + 제품군 일치 + 희망 날짜 근무 가능. 후보가 여러 명이면 그날 예약이 가장 적은 기사, 동률이면 기사
+  ID 순'
+- 기사 명단·근무일·예약은 가상 JSON 파일로 만들고 MCP 도구로 노출
+- 고객이 제안을 거절하거나 희망 날짜에 가능한 기사가 없으면, 배정 규칙을 만족하는 가장 빠른 가능 날짜 하루를 기사와 함께 다시 제안. 한 번에
+  1개 날짜만 제안하고 재제안은 최대 3회
+- 재제안 3회가 모두 거절/실패하면 가능한 기사가 없다고 안내하고, 접수를 '대기' 상태로 저장한 뒤 '추후 연락' 안내로 종료
+- 입력 가드레일 차단 대상 = 프롬프트 인젝션, AS 무관 질문(잡담·주식 등), 욕설·폭언. 차단 시 안내 문구를 보내고 대화는 계속
+- 개인정보(주민번호·카드번호 등)는 차단하지 않고 로그/LLM 전달 시 마스킹. 전화번호·주소는 차단 대상이 아님
+- 동일 고객이 동일 제품으로 방문 완료 전(진행 중)인 접수가 있으면 새 접수를 막고 기존 접수를 안내. 방문 완료된 건은 재접수 허용
+- 메모리 = 체크포인터(대화 중 기억) + 접수 이력 JSON 저장(이중 접수 확인용). 고객별 장기 기억은 제외
+- 고객 식별은 전화번호. 화면·로그에는 010-****-1234처럼 마스킹해 표시
+- 평가 항목은 RAG 답변 정확도(LLM-as-Judge), 기사 배정 정확도, 가드레일 차단율(오차단률 포함) 3가지. 슬롯 추출 정확도는 제외
+- 평가 합격 목표치는 정하지 않고 항목별 점수만 측정·출력
+- '평가셋은 직접 작성한 JSON: RAG 20건(질문+정답 조치), 기사 배정 15건(지역·제품·날짜+정답 기사 ID), 가드레일 30건(차단
+  20 + 정상 10)'
+- eval.py 한 번 실행으로 항목별 점수를 콘솔에 출력하고 건별 결과를 CSV로 저장
+- LangSmith 등 외부 평가/트레이싱 도구는 사용하지 않음
+- 필수 범위 = 5개 데모 시나리오 동작 + eval.py 3개 항목 측정 + 5개 시나리오를 화면 없이 자동 실행·검증하는 scenarios.py
+- '시간이 부족할 때 줄이는 순서: 결과 보고서 분석 깊이(점수표만) → BM25 하이브리드 검색(벡터 검색만) → 접수 이력 화면 표시 → Streamlit
+  UI(같은 그래프를 쓰는 CLI 데모로 대체)'
+acceptance_criteria:
+- description: '화면 없이 5개 데모 시나리오가 처음부터 끝까지 자동 실행·검증된다: ①자가 해결 종료 ②정상 예약 확정(규칙에 맞는
+    기사·날짜를 고객이 승인) ③3회 거절 후 ''대기'' 저장과 ''추후 연락'' 종료 ④진행 중 접수 중복 차단과 기존 접수 안내 ⑤가드레일
+    차단 후 대화 계속. 출력에 전화번호는 마스킹되어 나온다'
+  semantic_ac_key: ac_3bdf9f3912307fa6
+  verify_command: t=$(mktemp -d) && cp -r . "$t"/ && cd "$t" && python scenarios.py
+  expected_artifacts:
+  - scenarios.py
+- description: eval.py 한 번 실행으로 RAG 답변 정확도(LLM-as-Judge), 기사 배정 정확도, 가드레일 차단율·오차단률이
+    콘솔에 출력되고, 건별 결과 CSV가 저장된다. 평가셋 규모는 RAG 20건, 배정 15건, 가드레일 30건이다
+  semantic_ac_key: ac_67f983102ba35248
+  verify_command: t=$(mktemp -d) && cp -r . "$t"/ && cd "$t" && find . -name '*.csv'
+    -delete && python eval.py && python -c "import glob; assert glob.glob('**/*.csv',
+    recursive=True); print('CSV_OK')"
+  expected_artifacts:
+  - eval.py
+  output_assertion: CSV_OK
+- description: Streamlit 채팅 화면에서 같은 5개 시나리오를 끝까지 시연할 수 있다. 방문 일정 확정은 고객 승인(HITL)으로
+    이루어지고, 화면에 표시되는 전화번호는 마스킹된다
+  semantic_ac_key: ac_7ec363f76227b395
+  verify_exemption_reason: 브라우저에서 사람이 대화를 주고받는 상호작용 시연이라 한 줄 명령으로 판정할 수 없다. 같은 그래프
+    로직은 scenarios.py 기준으로 검증된다
+- description: 사용하는 Bedrock 모델 ID를 설정 한 곳에서 바꿀 수 있다. 모델 ID 문자열이 Python 소스 여러 곳에 하드코딩되어
+    있지 않다
+  semantic_ac_key: ac_3c48925c6abab0ba
+  verify_command: python -c "import pathlib; ids=['anthropic.claude','titan-embed'];
+    hits=[p for p in pathlib.Path('.').rglob('*.py') if '.venv' not in p.parts and
+    any(i in p.read_text(encoding='utf-8',errors='ignore') for i in ids)]; assert
+    len(hits)<=1, hits; print('CONFIG_OK')"
+  output_assertion: CONFIG_OK
+- description: README에 설치·실행 방법, 구조도, 사용 기술 목록, 평가 실행 방법이 있고, 평가 점수와 분석을 담은 Markdown
+    결과 보고서가 함께 있다
+  semantic_ac_key: ac_62a1a1f0ec9bb5c5
+  verify_command: python -c "import pathlib; r=pathlib.Path('README.md').read_text(encoding='utf-8');
+    assert 'eval.py' in r and 'streamlit' in r.lower(); reps=[p for p in pathlib.Path('.').glob('*.md')
+    if p.name!='README.md']; assert reps; print('DOCS_OK')"
+  expected_artifacts:
+  - README.md
+  output_assertion: DOCS_OK
+assumptions:
+- eval.py, scenarios.py, README.md는 C:\AX-SDS\miniPjt 루트에 둔다
+- 모델 설정 파일은 .env와 커밋용 .env.example 형태이며, 모델 ID 문자열을 담는 Python 모듈은 설정 모듈 하나뿐이다
+- '결과 보고서는 README.md가 아닌 별도 Markdown 파일(예: REPORT.md)이다'
+- scenarios.py는 기본적으로 실제 Bedrock을 호출하며, 시나리오 하나라도 실패하면 0이 아닌 종료 코드로 끝난다
+- 기사 배정은 결정적 규칙이므로 배정 평가 15건은 100% 정답일 것으로 예상하지만, 이것은 합격 기준이 아니다
+- 실행·검증 명령은 Bash에서 python 명령이 Python 3.14를 가리킨다고 가정한다
+- MCP 서버는 day7_practice처럼 FastMCP 서버(mcp_server.py)로 구성한다
+- 벡터스토어는 Chroma를 쓰고, 시간이 허락하면 BM25+kiwipiepy 하이브리드 검색을 더한다
+ontology_schema:
+  name: ASIntakeCallCenter
+  description: 고객 AS 접수부터 증상 상담(RAG), 기사 배정(MCP), 방문 일정 승인(HITL)까지 이어지는 접수 건과, 그에
+    관련된 기사·평가 데이터의 도메인 모델
+  fields:
+  - name: ticket_id
+    type: string
+    description: 접수 건 식별자
+    required: true
+  - name: customer_phone
+    type: string
+    description: 고객 식별용 전화번호(표시·로그에는 마스킹)
+    required: true
+  - name: address_region
+    type: string
+    description: 고객 지역(기사 배정 조건)
+    required: true
+  - name: product_category
+    type: string
+    description: 제품군(TV/냉장고/세탁기 등)
+    required: true
+  - name: symptom
+    type: string
+    description: 고객이 말한 증상
+    required: true
+  - name: rag_guidance
+    type: string
+    description: FAQ 검색으로 안내한 자가 조치 내용
+    required: true
+  - name: self_resolved
+    type: boolean
+    description: 자가 조치로 해결되었는지 여부
+    required: true
+  - name: preferred_date
+    type: string
+    description: 고객 희망 방문 날짜
+    required: true
+  - name: assigned_technician_id
+    type: string
+    description: 배정된 기사 ID
+    required: true
+  - name: visit_date
+    type: string
+    description: 확정 또는 제안된 방문 날짜
+    required: true
+  - name: proposal_attempts
+    type: number
+    description: 재제안 횟수(최대 3)
+    required: true
+  - name: status
+    type: string
+    description: 접수 상태(자가해결종료/예약확정/대기/방문완료)
+    required: true
+  - name: technicians
+    type: array
+    description: 기사 명단(ID, 지역, 제품군, 근무일, 날짜별 예약 수)
+    required: true
+  - name: guard_result
+    type: object
+    description: '입력 가드 판정(차단 여부, 유형: 인젝션/무관/욕설)'
+    required: true
+  - name: eval_scores
+    type: object
+    description: RAG 정확도, 배정 정확도, 가드 차단율·오차단률
+    required: true
+evaluation_principles:
+- name: scenario_completeness
+  description: 5개 데모 시나리오가 그래프 수준(scenarios.py)과 UI/CLI에서 끝까지 동작한다
+  weight: 0.3
+- name: rule_fidelity
+  description: 배정 규칙, 재제안 최대 3회, 대기 저장, 중복 접수 차단, 가드 차단 범위가 인터뷰 결정과 정확히 일치한다
+  weight: 0.25
+- name: measurable_evaluation
+  description: eval.py가 3개 항목 점수와 건별 CSV를 재현 가능하게 만든다
+  weight: 0.2
+- name: simplicity
+  description: 초보자가 이해할 수 있는 단순한 단일 그래프 구조이며, 강의 실습 코드 패턴을 재사용한다
+  weight: 0.15
+- name: privacy_and_config
+  description: PII와 전화번호가 마스킹되고, 모델 ID는 설정 한 곳에서 바뀐다
+  weight: 0.1
+exit_conditions:
+- name: all_required_done
+  description: 필수 범위가 모두 충족됨
+  criteria: scenarios.py 5개 시나리오 통과 + eval.py 3개 항목 점수 출력·CSV 저장 + README와 결과 보고서
+    존재
+- name: time_box_reached
+  description: 1일 시간 한도 도달
+  criteria: 정해진 축소 순서(보고서 깊이 → BM25 → 이력 화면 → Streamlit을 CLI로 대체)를 적용한 뒤에도 필수 범위가
+    충족된 상태로 종료
+- name: blocked_by_model_access
+  description: Bedrock 모델 접근 불가
+  criteria: 설정에서 다른 Bedrock 모델로 바꿔도 실행할 수 없으면 중단하고 보고
+metadata:
+  seed_id: seed_e2979bb9814a
+  version: 1.1.0
+  revision_note: 'refinement pass 1 - 적용: C1(중복 AC 2개 삭제), C6(입력 형식 검증), C7(temperature=0, FAQ 데이터 구분), C8(UI 로직 금지 명확화) / 유지: C2, C3, C4, C5'
+  created_at: '2026-11-11T02:38:27.101233Z'
+  ambiguity_score: 0.1475
+  gate_forced: false
+  interview_id: interview_20261111_020047
+  parent_seed_id: null
+  generation_mode: normal
+  degraded: false
+  unresolved_slots: []
+  recovery_reason: null
