@@ -93,6 +93,7 @@ constraints:
 - 파일럿 프로젝트로 1일 이내에 구현 가능한 범위
 - 고객이 직접 쓰는 AS 접수 챗봇이며 UI는 Streamlit 웹 채팅
 - UI 파일(Streamlit/CLI)에는 배정·라우팅 로직이 없고 그래프만 호출하며, Streamlit 없이 CLI로도 같은 시나리오를 시연할 수 있어야 함
+- 'LCEL + Pydantic 구조화 출력: 가드레일 LLM 판정(GuardResult: blocked, category, reason), 인-아웃 케이스 판정(JudgeResult: passed, missing_traits, found_forbidden, reason), 접수 정보 추출(IntakeSlots: name, phone, region, product, symptom, preferred_date)을 prompt | llm.with_structured_output(모델) 형태의 LCEL 체인으로 구현하고 dict로 반환'
 - LLM 호출은 temperature=0으로 고정하고, 검색된 FAQ 본문은 지시문이 아닌 데이터로 구분(구분자로 감싸기)해 프롬프트에 넣음
 - 전화번호 형식(010-XXXX-XXXX) 또는 날짜 형식(YYYY-MM-DD)이 틀리면 다시 입력을 요청함
 - 하나의 LangGraph 그래프(접수→상담→배정→예약)로 구현. Supervisor 멀티에이전트는 선택 확장
@@ -301,8 +302,8 @@ exit_conditions:
   criteria: 설정에서 다른 Bedrock 모델로 바꿔도 실행할 수 없으면 중단하고 보고
 metadata:
   seed_id: seed_e2979bb9814a
-  version: 1.2.0
-  revision_note: 'v1.2.0 - 제출 규약 반영: 폴더 구조(src/data/evaluation), POST /query API, test_queries.csv 인-아웃 세트, RAGAS, round1 보고서, README 템플릿. v1.1.0 - refinement pass 1 (C1, C6, C7, C8 적용)'
+  version: 1.2.1
+  revision_note: 'v1.2.1 - LCEL+Pydantic 구조화 출력 추가, 통과율 목표 90%. v1.2.0 - 제출 규약 반영: 폴더 구조(src/data/evaluation), POST /query API, test_queries.csv 인-아웃 세트, RAGAS, round1 보고서, README 템플릿. v1.1.0 - refinement pass 1 (C1, C6, C7, C8 적용)'
   created_at: '2026-11-11T02:38:27.101233Z'
   ambiguity_score: 0.1475
   gate_forced: false
