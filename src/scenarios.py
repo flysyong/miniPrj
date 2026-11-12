@@ -11,8 +11,8 @@ import uuid
 
 from src.agent import run_turn
 from src.config import settings
-from src.guards import GUARD_MESSAGES
-from src.make_data import reset_data
+from src.guard.prompts import GUARD_MESSAGES
+from src.booking.sample_data import reset_data
 
 
 def tickets() -> list[dict]:

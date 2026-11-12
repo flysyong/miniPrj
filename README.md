@@ -4,11 +4,11 @@
 고장 난 전자제품의 AS를 신청하려는 소비자가 콜센터를 기다리지 않고 채팅으로 자가 조치를 안내받거나, 기사 배정과 방문 날짜 확정까지 한 번에 끝낸다.
 
 ## 활용한 패턴 (Day 1~7)
-- Day 1: LCEL chain + Pydantic 구조화 출력 — `prompt | llm.with_structured_output(...)`로 접수 정보 추출(IntakeSlots), 가드 판정(GuardResult), 평가 판정(JudgeResult)을 dict로 반환 (`src/chains.py`)
-- Day 2: RAG — FAQ Markdown을 `##` 헤더 단위로 청킹, Titan v2 임베딩(Chroma) + BM25(kiwipiepy 형태소) 하이브리드 검색, 두 순위를 RRF로 결합, 제품군 메타데이터 필터 (`src/retriever.py`)
-- Day 3: LangGraph 조건 분기 — 대화 단계(stage)에 따라 상담 / 해결 확인 / 접수 / 조회로 라우팅, SQLite 체크포인터로 대화 기억 (`src/agent.py`)
+- Day 1: LCEL chain + Pydantic 구조화 출력 — `prompt | llm.with_structured_output(...)`로 접수 정보 추출(IntakeSlots), 가드 판정(GuardResult), 평가 판정(JudgeResult)을 dict로 반환 (각 도메인의 `schemas.py`·`prompts.py`·`chains.py`)
+- Day 2: RAG — FAQ Markdown을 `##` 헤더 단위로 청킹, Titan v2 임베딩(Chroma) + BM25(kiwipiepy 형태소) 하이브리드 검색, 두 순위를 RRF로 결합, 제품군 메타데이터 필터 (`src/consult/retriever.py`)
+- Day 3: LangGraph 조건 분기 — 대화 단계(stage)에 따라 상담 / 해결 확인 / 접수 / 조회로 라우팅, SQLite 체크포인터로 대화 기억 (`src/workflow/`)
 - Day 4: MCP 서버 연동 — FastMCP로 도메인 도구 6종 노출, 그래프는 MCP 클라이언트로 호출 (`src/mcp_server.py`)
-- Day 5: 가드레일 — 정규식 1차 + LLM 2차로 인젝션·무관 질문·욕설 차단, 차단 후에도 대화 계속 (`src/guards.py`)
+- Day 5: 가드레일 — 정규식 1차 + LLM 2차로 인젝션·무관 질문·욕설 차단, 차단 후에도 대화 계속 (`src/guard/`)
 - Day 5: HITL — 방문 일정 확정 전 `interrupt()`로 그래프를 멈추고 고객 승인을 받음, 거절 시 최대 3회 재제안
 - Day 5: 마스킹 — 주민번호·카드번호·전화번호를 대화 기록·로그·LLM 전달 전에 가림 (그래프 진입 전 전처리)
 - Day 7: 평가 — 인-아웃 세트 LLM-as-Judge + RAGAS 4지표 + 배정 정확도 + 가드 차단율 (`evaluation/run_eval.py`)
@@ -101,9 +101,11 @@ python evaluation/run_eval.py --only assign,guard   # 일부만
   - 평가셋 20건이 작아 1건이 5%p → 케이스 확대 필요
 
 ## 핵심 코드 위치
-- `src/agent.py:369` — 메인 에이전트 그래프 (`build_graph`), `src/agent.py:403` — 진입점 `run_turn`
-- `src/tools.py` — 도메인 도구 (배정 규칙 `assign_technician`, 중복 확인, 저장), `src/mcp_server.py` — MCP 서버
-- `src/retriever.py` — RAG 파이프라인
-- `src/guards.py` — 가드레일·마스킹, `src/chains.py` — LCEL 구조화 출력 체인
+소스는 도메인별 폴더로 나뉘어 있다 (폴더 규칙은 `CLAUDE.md`). `src/agent.py`·`tools.py`·`retriever.py`는 제출 규약 경로를 지키는 진입점이다.
+- `src/workflow/graph.py:35` — 메인 에이전트 그래프 (`build_graph`), `src/workflow/graph.py:70` — 진입점 `run_turn` (`src/agent.py`가 다시 내보냄)
+- `src/consult/` — FAQ 상담: 제품 판정, RAG 파이프라인(`retriever.py`), 자가 조치 답변
+- `src/booking/` — 접수·배정: 배정 규칙(`tools.py:39` `assign_technician`), 중복 확인, 저장, HITL 승인(`nodes.py:131` `hitl`)
+- `src/guard/` — 가드레일(`rules.py`)·마스킹(`masking.py`), `src/judge/` — 평가 판정 체인
+- `src/shared/` — 공통 LLM 클라이언트(`llm.py`), `src/mcp_server.py` — MCP 서버(도구 6종은 `src/tools.py`에 모음)
 - `src/api.py` — POST /query, `src/app.py` — Streamlit 화면
 - `evaluation/run_eval.py` — 평가, `evaluation/rag_metrics.py` — RAGAS 지표 계산

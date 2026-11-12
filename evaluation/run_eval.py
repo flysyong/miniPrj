@@ -24,12 +24,12 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from evaluation import rag_metrics  # noqa: E402
-from src import retriever  # noqa: E402
+from src.consult import retriever  # noqa: E402
 from src.agent import run_turn  # noqa: E402
-from src.chains import judge_case  # noqa: E402
+from src.judge.chains import judge_case  # noqa: E402
 from src.config import settings  # noqa: E402
-from src.guards import check_input  # noqa: E402
-from src.make_data import reset_data  # noqa: E402
+from src.guard.rules import check_input  # noqa: E402
+from src.booking.sample_data import reset_data  # noqa: E402
 from src.mcp_server import call_tool  # noqa: E402
 
 RESULTS = ROOT / "evaluation" / "results"

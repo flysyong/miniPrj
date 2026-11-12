@@ -1,4 +1,4 @@
-"""Bedrock LLM 생성 도우미.
+"""공통: Bedrock LLM 클라이언트 (모든 도메인이 같이 쓴다).
 
 - temperature=0 고정 (Seed 제약)
 - 메인 모델 호출이 실패하면 예비 모델로 자동 전환 (CLAUDE.md: 중단 없이 쓸 수 있게)
