@@ -3,6 +3,7 @@
 실행 (miniPjt 폴더에서): streamlit run src/app.py
 화면은 그래프(run_turn)만 호출하고, 배정·라우팅 로직은 두지 않는다.
 """
+import base64
 import sys
 import uuid
 from pathlib import Path
@@ -15,6 +16,41 @@ from src.agent import run_turn  # noqa: E402
 
 st.set_page_config(page_title="AS 접수 상담", page_icon="🔧")
 GREETING = "안녕하세요, 전자제품 AS 접수 상담입니다. 고장 난 제품과 증상을 말씀해 주세요."
+
+
+def apply_background() -> None:
+    """블랙 톤 위에 회로기판 무늬 배경을 은은하게 깐다 (색 테마는 .streamlit/config.toml).
+
+    배경 그림은 직접 그린 SVG(src/assets/bg_circuit.svg)라 외부 이미지·저작권·인터넷 연결이 필요 없다.
+    """
+    svg = (Path(__file__).parent / "assets" / "bg_circuit.svg").read_text(encoding="utf-8")
+    data = "data:image/svg+xml;base64," + base64.b64encode(svg.encode("utf-8")).decode()
+    st.markdown(f"""
+<style>
+[data-testid="stAppViewContainer"] {{
+  background-color: #0D0F12;
+  background-image:
+    radial-gradient(ellipse at 50% 0%, rgba(242,163,58,0.10), transparent 55%),
+    radial-gradient(ellipse at center, transparent 30%, rgba(13,15,18,0.85) 100%),
+    url("{data}");
+  background-size: auto, auto, 320px 320px;
+  background-attachment: fixed;
+}}
+[data-testid="stHeader"] {{ background: transparent; }}
+[data-testid="stBottomBlockContainer"], [data-testid="stBottom"] > div {{ background: transparent; }}
+/* 대화 말풍선은 배경 무늬 위에서도 읽히도록 반투명 패널로 */
+[data-testid="stChatMessage"] {{
+  background: rgba(23,26,31,0.88);
+  border: 1px solid #262B33;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+}}
+[data-testid="stSidebar"] {{ background: rgba(18,20,24,0.96); border-right: 1px solid #262B33; }}
+h1 {{ letter-spacing: -0.01em; }}
+</style>""", unsafe_allow_html=True)
+
+
+apply_background()
 
 
 def new_session() -> None:

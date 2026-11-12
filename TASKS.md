@@ -85,3 +85,4 @@
   - 사이드바의 개발자용 정보(이번 턴 trace, 근거 FAQ, thread_id)는 기본 화면에서 숨기고 `.env`의 `DEBUG_UI=1`일 때만 표시
   - 고객 화면에는 상담 상태와 "새 상담 시작" 버튼만 남김, 그 밖의 레이아웃 정리
   - 완료: 기본 실행 시 개발자 정보가 보이지 않고, DEBUG_UI=1이면 보임
+  - (먼저 적용) 블랙 톤 테마 `.streamlit/config.toml` + 회로기판 무늬 배경 `src/assets/bg_circuit.svg` — 사용자 요청

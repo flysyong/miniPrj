@@ -1,0 +1,9 @@
+# Streamlit 화면 테마 (블랙 톤 + 수리 작업등 느낌의 앰버 포인트)
+# Streamlit은 실행 폴더(miniPjt)의 .streamlit/config.toml을 자동으로 읽는다
+[theme]
+base = "dark"
+primaryColor = "#F2A33A"              # 버튼·강조 (작업등 앰버)
+backgroundColor = "#0D0F12"           # 전체 배경 (거의 검정, 살짝 푸른빛)
+secondaryBackgroundColor = "#171A1F"  # 사이드바·입력창
+textColor = "#E6E8EB"
+font = "sans serif"
