@@ -4,7 +4,7 @@
 고장 난 전자제품의 AS를 신청하려는 소비자가 콜센터를 기다리지 않고 채팅으로 자가 조치를 안내받거나, 기사 배정과 방문 날짜 확정까지 한 번에 끝낸다.
 
 ## 활용한 패턴 (Day 1~7)
-- Day 1: LCEL chain + Pydantic 구조화 출력 — `prompt | llm.with_structured_output(...)`로 접수 정보 추출(IntakeSlots), 가드 판정(GuardResult), 평가 판정(JudgeResult)을 dict로 반환 (각 도메인의 `schemas.py`·`prompts.py`·`chains.py`)
+- Day 1: LCEL chain + Pydantic 구조화 출력 — `prompt | llm.with_structured_output(...)`로 접수 정보 추출(IntakeSlots), 제품 판정(ProductCheck), 가드 판정(GuardResult), 평가 판정(JudgeResult)을 dict로 반환 (각 도메인의 `schemas.py`·`prompts.py`·`chains.py`)
 - Day 2: RAG — FAQ Markdown을 `##` 헤더 단위로 청킹, Titan v2 임베딩(Chroma) + BM25(kiwipiepy 형태소) 하이브리드 검색, 두 순위를 RRF로 결합, 제품군 메타데이터 필터 (`src/consult/retriever.py`)
 - Day 3: LangGraph 조건 분기 — 대화 단계(stage)에 따라 상담 / 해결 확인 / 접수 / 조회로 라우팅, SQLite 체크포인터로 대화 기억 (`src/workflow/`)
 - Day 4: MCP 서버 연동 — FastMCP로 도메인 도구 6종 노출, 그래프는 MCP 클라이언트로 호출 (`src/mcp_server.py`)
@@ -20,15 +20,19 @@ Streamlit 화면 · CLI · POST /query ──▶ run_turn()  (전화번호 원�
                                           ▼
                      begin ─▶ guard (정규식 → LLM)  ──(차단)──▶ 안내 문구, 대화 계속
                                           │
+                                          ├──(취소 의사, 어느 단계든)──▶ cancel: 저장 없이 마무리 인사, 상태 초기화
               ┌──────────────┬────────────┼──────────────────┐
               ▼              ▼            ▼                  ▼
           consult      resolve_check    lookup             intake
-     FAQ 검색(MCP)·답변   해결/미해결    진행 접수 조회     정보 추출(LLM)·형식 검증(파이썬)
+     제품 판정(규칙→LLM)   해결/미해결    진행 접수 조회     정보 추출(LLM)·형식 검증·지역 정규화(파이썬)
+      ├ 미지원 제품 → 판매처 문의 안내                      ├ 담당 기사 없는 지역 → 저장 없이 안내 후 종료
+      ├ 안전 증상 → 사용 중지 안내 → 바로 intake             │
+      └ FAQ 검색(MCP)·답변                                   │
               │              │                               │
               └──(미해결)────┴──────────────▶ check_duplicate (MCP) ──(중복)──▶ 기존 접수 안내
                                                              │
                                                              ▼
-                                         assign (MCP: 규칙 배정 / 가장 빠른 날짜)
+                                         assign (MCP: 규칙 배정 / 가장 빠른 날짜, 14일 내 없으면 '대기')
                                                              │
                                                              ▼
                                        propose ─▶ hitl: interrupt() 고객 승인 대기
@@ -36,8 +40,8 @@ Streamlit 화면 · CLI · POST /query ──▶ run_turn()  (전화번호 원�
                                                     ▼              ▼
                                            save_ticket 예약확정   재제안 → 초과 시 '대기' 저장
 ```
-- LLM이 하는 일: 자가 조치 답변 생성(FAQ 근거만), 접수 정보 추출, 가드 2차 판정
-- 파이썬이 하는 일: 라우팅, 해결·승인 판정, 형식 검증, 중복 확인, 기사 배정 규칙, 저장
+- LLM이 하는 일: 자가 조치 답변 생성(FAQ 근거만), 접수 정보 추출, 제품 판정 2차, 가드 2차 판정
+- 파이썬이 하는 일: 라우팅·취소, 해결·승인 판정, 형식 검증, 지역 정규화·서비스 지역 판정, 중복 확인, 기사 배정 규칙, 저장
 - 데이터: `data/faq/*.md`(FAQ 35건), `data/technicians.json`(기사 10명), `data/tickets.json`(접수 이력) — 모두 가상 데이터
 
 ## 실행 방법
@@ -58,7 +62,7 @@ curl -X POST localhost:8000/query -H "Content-Type: application/json" -d '{"ques
 #   이어서 대화: 응답 헤더 X-Thread-Id 값을 Body의 "thread_id"로 함께 보냄
 
 # 3) 검증·평가
-python -m src.scenarios         # 데모 시나리오 5개 자동 검증 (실패 시 종료 코드 1)
+python -m src.scenarios         # 데모 시나리오 6개 자동 검증 (실패 시 종료 코드 1)
 python evaluation/run_eval.py   # 4개 항목 평가 → evaluation/results/*.csv, summary.json
 python evaluation/run_eval.py --only assign,guard   # 일부만
 ```
@@ -83,6 +87,7 @@ python evaluation/run_eval.py --only assign,guard   # 일부만
   코드 개선이 아니라 **평가 기준을 갱신한 결과**이며, 위 1차·2차 수치는 당시 기준 그대로 둔다 (변경 내용: TASKS.md T21)
 
 그 밖의 지표 (1차 → 2차): 기사 배정 정확도 15/15 → 15/15 · 가드레일 차단율 20/20 → 20/20 · 오차단률 0/10 → 0/10 · 시나리오 5/5 → 5/5
+(최종 제출본 기준: 배정 15/15 · 시나리오 6/6 — 상담 취소 시나리오 추가)
 
 ## 트라이앤에러 회고
 - 시도했지만 실패한 접근 · 왜 실패했는가
@@ -98,15 +103,19 @@ python evaluation/run_eval.py --only assign,guard   # 일부만
   - 검색은 벡터 + BM25 하이브리드, "두 검색이 같은 문서를 1위로 고르면 거리 기준 완화" → 바꿔 말한 질문은 살리고 답이 없어야 할 질문은 계속 거름 (RAGAS 0.65 → 0.95)
 - 남은 한계 · 향후 개선 방향
   - 검색 기준값을 평가셋 측정값으로 정해 처음 보는 질문에서는 성능이 낮을 수 있음 → 별도 검증용 질문 세트로 일반화 확인 필요
-  - 안전 증상·지원 외 제품 판정이 정규식이라 목록에 없는 표현("스파크", "식세기")을 놓침 → LLM 2차 확인 추가
+  - 안전 증상 판정은 아직 정규식뿐이라 목록에 없는 표현("스파크", "지지직 타는 소리")을 놓칠 수 있음 → LLM 2차 확인 추가 필요
+    (지원 외 제품 판정은 규칙 1차 + LLM 2차로 보완 완료)
   - 평가셋 #9·#11의 기대값이 초기 설계(항상 FAQ 검색) 기준이라 바뀐 정책과 어긋났음 → 기준 정리 완료(20/20). 다만 정책을 바꿀 때마다 평가셋을 함께 고치는 절차가 필요
   - 평가셋 20건이 작아 1건이 5%p → 케이스 확대 필요
 
 ## 핵심 코드 위치
-소스는 도메인별 폴더로 나뉘어 있다 (폴더 규칙은 `CLAUDE.md`). `src/agent.py`·`tools.py`·`retriever.py`는 제출 규약 경로를 지키는 진입점이다.
-- `src/workflow/graph.py:35` — 메인 에이전트 그래프 (`build_graph`), `src/workflow/graph.py:70` — 진입점 `run_turn` (`src/agent.py`가 다시 내보냄)
-- `src/consult/` — FAQ 상담: 제품 판정, RAG 파이프라인(`retriever.py`), 자가 조치 답변
-- `src/booking/` — 접수·배정: 배정 규칙(`tools.py:39` `assign_technician`), 중복 확인, 저장, HITL 승인(`nodes.py:131` `hitl`)
+- `src/agent.py:5` — 메인 에이전트 그래프 (진입점, 구현: `src/workflow/graph.py:35` `build_graph`, `src/workflow/graph.py:70` `run_turn`)
+- `src/tools.py` — 도메인 도구 (MCP 도구 6종 모음, 구현: `src/consult/tools.py` `search_faq`, `src/booking/tools.py:39` `assign_technician` 외)
+- `src/retriever.py` — RAG 파이프라인 (진입점, 구현: `src/consult/retriever.py`)
+
+그 밖의 위치 — 소스는 도메인별 폴더로 나뉘어 있다 (폴더 규칙은 `CLAUDE.md`):
+- `src/consult/` — FAQ 상담: 제품 판정(`products.py`), RAG 검색, 자가 조치 답변
+- `src/booking/` — 접수·배정: 중복 확인, 저장, 서비스 지역(`service_area.py`), HITL 승인(`nodes.py:157` `hitl`)
 - `src/guard/` — 가드레일(`rules.py`)·마스킹(`masking.py`), `src/judge/` — 평가 판정 체인
 - `src/shared/` — 공통 LLM 클라이언트(`llm.py`), `src/mcp_server.py` — MCP 서버(도구 6종은 `src/tools.py`에 모음)
 - `src/api.py` — POST /query, `src/app.py` — Streamlit 화면
