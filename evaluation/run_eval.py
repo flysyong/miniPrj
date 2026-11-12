@@ -64,7 +64,8 @@ def eval_inout() -> dict:
         r = run_turn(str(uuid.uuid4()), c["input"])
         called = [t["step"] for t in r["trace"] if t["step"] in TOOL_STEPS]
         missing_tools = [t for t in split(c["expected_tools"]) if t not in called]
-        j = judge_case(c["input"], r["answer"], c["expected_traits"], c["forbidden"])
+        # 판정 LLM에도 마스킹된 입력만 보낸다 (r["question"] = 주민·카드·전화번호 마스킹본)
+        j = judge_case(r["question"], r["answer"], c["expected_traits"], c["forbidden"])
         passed = j["passed"] and not j["found_forbidden"] and not missing_tools
         rows.append({"id": c["id"], "category": c["category"], "passed": passed, "judge_passed": j["passed"],
                      "missing_traits": "; ".join(j["missing_traits"]), "found_forbidden": "; ".join(j["found_forbidden"]),
