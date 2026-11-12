@@ -1,0 +1,84 @@
+"""Streamlit 채팅 화면.
+
+실행 (miniPjt 폴더에서): streamlit run src/app.py
+화면은 그래프(run_turn)만 호출하고, 배정·라우팅 로직은 두지 않는다.
+"""
+import sys
+import uuid
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # src 패키지 import용
+
+import streamlit as st  # noqa: E402
+
+from src.agent import run_turn  # noqa: E402
+
+st.set_page_config(page_title="AS 접수 상담", page_icon="🔧")
+GREETING = "안녕하세요, 전자제품 AS 접수 상담입니다. 고장 난 제품과 증상을 말씀해 주세요."
+
+
+def new_session() -> None:
+    st.session_state.thread_id = str(uuid.uuid4())
+    st.session_state.history = [{"role": "assistant", "content": GREETING}]
+    st.session_state.last = None
+
+
+if "thread_id" not in st.session_state:
+    new_session()
+
+# ---------------- 사이드바: 에이전트 내부 상태
+with st.sidebar:
+    st.subheader("상담 상태")
+    last = st.session_state.last
+    st.write(f"**상태:** {last['status'] if last else '대기 중'}")
+    if st.button("새 상담 시작"):
+        new_session()
+        st.rerun()
+    if last:
+        st.subheader("이번 턴 trace")
+        for t in last["trace"]:
+            with st.expander(t["step"]):
+                st.caption(f"input: {t['input']}")
+                st.caption(f"output: {t['output']}")
+        if last["contexts"]:
+            st.subheader("근거 FAQ")
+            for c in last["contexts"]:
+                st.caption(c["doc_id"])
+    st.caption(f"thread_id: {st.session_state.thread_id[:8]}")
+
+# ---------------- 채팅
+st.title("전자제품 AS 접수 상담")
+for m in st.session_state.history:
+    with st.chat_message(m["role"]):
+        st.markdown(m["content"])
+
+def send(text: str) -> None:
+    """입력 1건을 그래프에 보내고 대화 기록에 남긴다."""
+    with st.spinner("확인 중…"):
+        result = run_turn(st.session_state.thread_id, text)
+    # 화면에는 마스킹된 입력(010-****-1234 등)을 표시한다
+    st.session_state.history.append({"role": "user", "content": result["question"]})
+    st.session_state.history.append({"role": "assistant", "content": result["answer"]})
+    st.session_state.last = result
+    st.rerun()
+
+
+# 방문 일정 승인 대기(HITL) 중이면 버튼으로도 답할 수 있게 한다 (버튼도 같은 문장을 그래프에 보냄)
+last = st.session_state.last
+clicked = None
+if last and last["stage"] == "hitl":
+    col1, col2 = st.columns(2)
+    if col1.button("이 일정으로 확정", type="primary", use_container_width=True):
+        clicked = "확정"
+    if col2.button("다른 날짜로 해주세요", use_container_width=True):
+        clicked = "다른 날짜로 해주세요"
+elif last and last["stage"] == "resolve_check":
+    col1, col2 = st.columns(2)
+    if col1.button("해결됐어요", use_container_width=True):
+        clicked = "해결됐어요"
+    if col2.button("그래도 안 돼요", use_container_width=True):
+        clicked = "그래도 안 돼요"
+
+prompt = st.chat_input("증상이나 접수 정보를 입력하세요")
+if clicked or prompt:
+    send(clicked or prompt)

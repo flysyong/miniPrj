@@ -1,0 +1,188 @@
+[
+  {
+    "technician_id": "T01",
+    "name": "김민준",
+    "region": "서울 강남구",
+    "products": [
+      "TV",
+      "냉장고"
+    ],
+    "workdays": [
+      "월",
+      "화",
+      "수",
+      "목",
+      "금"
+    ],
+    "bookings": {
+      "2026-11-20": 2
+    }
+  },
+  {
+    "technician_id": "T02",
+    "name": "이서준",
+    "region": "서울 강남구",
+    "products": [
+      "냉장고",
+      "세탁기"
+    ],
+    "workdays": [
+      "월",
+      "화",
+      "수",
+      "목",
+      "금"
+    ],
+    "bookings": {
+      "2026-11-20": 1
+    }
+  },
+  {
+    "technician_id": "T03",
+    "name": "박도윤",
+    "region": "서울 마포구",
+    "products": [
+      "TV",
+      "냉장고",
+      "세탁기"
+    ],
+    "workdays": [
+      "월",
+      "화",
+      "수",
+      "목",
+      "금",
+      "토"
+    ],
+    "bookings": {
+      "2026-11-14": 1
+    }
+  },
+  {
+    "technician_id": "T04",
+    "name": "최예준",
+    "region": "부산 해운대구",
+    "products": [
+      "세탁기",
+      "에어컨"
+    ],
+    "workdays": [
+      "월",
+      "화",
+      "수",
+      "목",
+      "금"
+    ],
+    "bookings": {
+      "2026-11-16": 1
+    }
+  },
+  {
+    "technician_id": "T05",
+    "name": "정하준",
+    "region": "부산 해운대구",
+    "products": [
+      "세탁기"
+    ],
+    "workdays": [
+      "월",
+      "수",
+      "금"
+    ],
+    "bookings": {}
+  },
+  {
+    "technician_id": "T06",
+    "name": "강지호",
+    "region": "서울 송파구",
+    "products": [
+      "냉장고",
+      "세탁기",
+      "에어컨"
+    ],
+    "workdays": [
+      "월",
+      "화",
+      "수",
+      "목",
+      "금",
+      "토"
+    ],
+    "bookings": {
+      "2026-11-13": 1
+    }
+  },
+  {
+    "technician_id": "T07",
+    "name": "윤시우",
+    "region": "인천 남동구",
+    "products": [
+      "TV",
+      "냉장고",
+      "세탁기"
+    ],
+    "workdays": [
+      "월",
+      "화",
+      "수",
+      "목",
+      "금"
+    ],
+    "bookings": {}
+  },
+  {
+    "technician_id": "T08",
+    "name": "장은우",
+    "region": "대전 서구",
+    "products": [
+      "TV",
+      "냉장고",
+      "세탁기",
+      "에어컨",
+      "전자레인지"
+    ],
+    "workdays": [
+      "월",
+      "화",
+      "수",
+      "목",
+      "금"
+    ],
+    "bookings": {}
+  },
+  {
+    "technician_id": "T09",
+    "name": "임서진",
+    "region": "서울 강남구",
+    "products": [
+      "에어컨",
+      "전자레인지",
+      "TV"
+    ],
+    "workdays": [
+      "화",
+      "목",
+      "토"
+    ],
+    "bookings": {
+      "2026-11-20": 0
+    }
+  },
+  {
+    "technician_id": "T10",
+    "name": "한지민",
+    "region": "서울 마포구",
+    "products": [
+      "에어컨",
+      "전자레인지"
+    ],
+    "workdays": [
+      "월",
+      "화",
+      "수",
+      "목",
+      "금"
+    ],
+    "bookings": {}
+  }
+]

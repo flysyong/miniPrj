@@ -11,9 +11,8 @@ langgraph
 langgraph-checkpoint-sqlite
 mcp==1.30.0
 fastmcp==2.13.0
-langchain-mcp-adapters==0.3.2
 fastapi
 uvicorn
 streamlit
-ragas
+# ragas: Python 3.14에서 설치·실행 불가 → evaluation/rag_metrics.py에서 같은 4개 지표를 직접 계산
 httpx

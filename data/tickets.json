@@ -1,0 +1,41 @@
+[
+  {
+    "ticket_id": "AS-20261105-002",
+    "customer_name": "이영희",
+    "phone": "010-5555-0001",
+    "region": "서울 마포구",
+    "product": "냉장고",
+    "symptom": "냉장실 온도가 올라감",
+    "technician_id": "T03",
+    "visit_date": "2026-11-14",
+    "status": "예약확정",
+    "proposal_attempts": 0,
+    "created_at": "2026-11-05"
+  },
+  {
+    "ticket_id": "AS-20261020-011",
+    "customer_name": "정수민",
+    "phone": "010-8888-9999",
+    "region": "서울 송파구",
+    "product": "냉장고",
+    "symptom": "냉동실 성에 과다",
+    "technician_id": "T06",
+    "visit_date": "2026-10-22",
+    "status": "방문완료",
+    "proposal_attempts": 0,
+    "created_at": "2026-10-20"
+  },
+  {
+    "ticket_id": "AS-20261109-004",
+    "customer_name": "윤서연",
+    "phone": "010-4444-5555",
+    "region": "서울 송파구",
+    "product": "세탁기",
+    "symptom": "탈수 시 소음",
+    "technician_id": "T06",
+    "visit_date": "2026-11-13",
+    "status": "예약확정",
+    "proposal_attempts": 1,
+    "created_at": "2026-11-09"
+  }
+]
