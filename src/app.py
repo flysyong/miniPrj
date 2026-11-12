@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # src 패키지
 import streamlit as st  # noqa: E402
 
 from src.agent import run_turn  # noqa: E402
+from src.config import settings  # noqa: E402
 
 st.set_page_config(page_title="AS 접수 상담", page_icon="🔧")
 GREETING = """안녕하세요, 전자제품 AS 접수 상담입니다. 고장 난 제품과 증상을 말씀해 주세요.
@@ -72,25 +73,32 @@ def new_session() -> None:
 if "thread_id" not in st.session_state:
     new_session()
 
-# ---------------- 사이드바: 에이전트 내부 상태
+# ---------------- 사이드바: 고객에게는 상담 상태와 새 상담 버튼만, 개발자 정보는 DEBUG_UI=1일 때만
 with st.sidebar:
     st.subheader("상담 상태")
     last = st.session_state.last
-    st.write(f"**상태:** {last['status'] if last else '대기 중'}")
-    if st.button("새 상담 시작"):
+    st.markdown(f"**{(last['status'] if last else '') or '상담 대기'}**")
+    if st.button("새 상담 시작", use_container_width=True):
         new_session()
         st.rerun()
-    if last:
-        st.subheader("이번 턴 trace")
-        for t in last["trace"]:
-            with st.expander(t["step"]):
-                st.caption(f"input: {t['input']}")
-                st.caption(f"output: {t['output']}")
-        if last["contexts"]:
-            st.subheader("근거 FAQ")
-            for c in last["contexts"]:
-                st.caption(c["doc_id"])
-    st.caption(f"thread_id: {st.session_state.thread_id[:8]}")
+    st.divider()
+    st.caption("지원 제품: TV · 냉장고 · 세탁기 · 에어컨 · 전자레인지")
+    st.caption("접수를 취소하려면 언제든 '취소할게요'라고 말씀해 주세요.")
+
+    if settings.debug_ui:
+        st.divider()
+        st.subheader("개발자 정보")
+        st.caption(f"thread_id: {st.session_state.thread_id[:8]} · stage: {last['stage'] if last else '-'}")
+        if last:
+            st.markdown("**이번 턴 trace**")
+            for t in last["trace"]:
+                with st.expander(t["step"]):
+                    st.caption(f"input: {t['input']}")
+                    st.caption(f"output: {t['output']}")
+            if last["contexts"]:
+                st.markdown("**근거 FAQ**")
+                for c in last["contexts"]:
+                    st.caption(c["doc_id"])
 
 # ---------------- 채팅
 st.title("전자제품 AS 접수 상담")

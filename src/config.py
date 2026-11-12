@@ -29,6 +29,9 @@ class Settings:
     embed_model_id: str = os.getenv("EMBED_MODEL_ID", "amazon.titan-embed-text-v2:0")
     temperature: float = 0.0
 
+    # 화면: 1이면 사이드바에 개발자 정보(trace·근거 FAQ·thread_id)를 보여 준다 (기본: 숨김)
+    debug_ui: bool = os.getenv("DEBUG_UI", "0").strip() == "1"
+
     # 경로
     data_dir: Path = ROOT / "data"
     faq_dir: Path = ROOT / "data" / "faq"
