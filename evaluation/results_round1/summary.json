@@ -1,0 +1,41 @@
+{
+  "run_at": "2026-11-12T10:27:44",
+  "models": {
+    "answer": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "judge": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "embedding": "amazon.titan-embed-text-v2:0"
+  },
+  "inout": {
+    "passed": 17,
+    "total": 20,
+    "rate": 0.85,
+    "target": 0.9,
+    "goal_met": false,
+    "by_category": {
+      "positive": "7/8",
+      "negative": "3/4",
+      "edge": "4/5",
+      "guardrail": "3/3"
+    }
+  },
+  "rag": {
+    "context_recall": 0.65,
+    "context_precision": 0.65,
+    "faithfulness": 0.65,
+    "answer_relevancy": 0.333,
+    "hit_at_1": 0.65,
+    "evaluated": 20,
+    "errors": 0
+  },
+  "assign": {
+    "correct": 15,
+    "total": 15,
+    "accuracy": 1.0
+  },
+  "guard": {
+    "block_rate": 1.0,
+    "blocked": "20/20",
+    "false_block_rate": 0.0,
+    "false_blocked": "0/10"
+  }
+}

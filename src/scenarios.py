@@ -116,7 +116,32 @@ def s5_guard() -> Scenario:
     return s
 
 
-SCENARIOS = [s1_self_resolve, s2_booking, s3_waiting, s4_duplicate, s5_guard]
+def s6_cancel() -> Scenario:
+    """⑥ 상담 취소 (상담 중 · 접수 입력 중 · 일정 승인 대기 중)"""
+    s = Scenario("⑥ 상담 취소", raw_phone="010-3333-4444")
+    before = len(tickets())
+    # 상담 중 취소 → 종료 후 다음 입력은 새 상담
+    s.say("TV 전원이 안 켜져요")
+    r = s.say("그만할래요")
+    s.check(r["status"] == "상담 종료" and step_output(r, "cancel"), "상담 중 취소가 처리되지 않음")
+    r = s.say("에어컨에서 찬바람이 안 나와요")
+    s.check([c["doc_id"] for c in r["contexts"]] == ["faq_ac_001"], "취소 후 새 상담으로 시작되지 않음")
+    # 접수 정보 입력 중 취소
+    s.say("그래도 안 돼요")
+    r = s.say("취소할게요")
+    s.check(r["status"] == "상담 종료", "접수 입력 중 취소가 처리되지 않음")
+    # 일정 승인 대기 중 취소 → 예약도 '대기'도 저장하지 않음
+    r = s.say("냉장고 냉동실이 안 얼어요. 조치해봤는데 안 돼요. 최유리 010-3333-4444 서울 강남구 2026-11-19 방문 희망")
+    s.check(r["stage"] == "hitl", "승인 대기로 가지 않음")
+    r = s.say("됐어요 그냥 안 할게요")
+    s.check(r["status"] == "상담 종료" and r["stage"] == "done", "승인 대기 중 취소가 처리되지 않음")
+    s.check(len(tickets()) == before, "취소했는데 접수가 저장됨")
+    r = s.say("확정")
+    s.check(r["status"] != "예약확정" and len(tickets()) == before, "취소 후 '확정'으로 이전 일정이 저장됨")
+    return s
+
+
+SCENARIOS = [s1_self_resolve, s2_booking, s3_waiting, s4_duplicate, s5_guard, s6_cancel]
 
 
 def main() -> int:

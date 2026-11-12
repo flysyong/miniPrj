@@ -23,7 +23,8 @@ class Settings:
     # AWS Bedrock
     aws_region: str = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
     llm_model_id: str = os.getenv("LLM_MODEL_ID", "us.anthropic.claude-sonnet-4-5-20250929-v1:0")
-    llm_fallback_model_id: str = os.getenv("LLM_FALLBACK_MODEL_ID", "global.anthropic.claude-sonnet-4-5-20250929-v1:0")
+    # 예비 모델은 메인(Sonnet)과 한도가 따로인 Haiku: Sonnet 하루 토큰 한도 초과 시에도 상담이 멈추지 않게
+    llm_fallback_model_id: str = os.getenv("LLM_FALLBACK_MODEL_ID", "global.anthropic.claude-haiku-4-5-20251001-v1:0")
     judge_model_id: str = os.getenv("JUDGE_MODEL_ID", "global.anthropic.claude-haiku-4-5-20251001-v1:0")
     embed_model_id: str = os.getenv("EMBED_MODEL_ID", "amazon.titan-embed-text-v2:0")
     temperature: float = 0.0

@@ -5,7 +5,7 @@
 
 ## 활용한 패턴 (Day 1~7)
 - Day 1: LCEL chain + Pydantic 구조화 출력 — `prompt | llm.with_structured_output(...)`로 접수 정보 추출(IntakeSlots), 가드 판정(GuardResult), 평가 판정(JudgeResult)을 dict로 반환 (`src/chains.py`)
-- Day 2: RAG — FAQ Markdown을 `##` 헤더 단위로 청킹, Titan v2 임베딩, Chroma 저장, 제품군 메타데이터 필터 검색 (`src/retriever.py`)
+- Day 2: RAG — FAQ Markdown을 `##` 헤더 단위로 청킹, Titan v2 임베딩(Chroma) + BM25(kiwipiepy 형태소) 하이브리드 검색, 두 순위를 RRF로 결합, 제품군 메타데이터 필터 (`src/retriever.py`)
 - Day 3: LangGraph 조건 분기 — 대화 단계(stage)에 따라 상담 / 해결 확인 / 접수 / 조회로 라우팅, SQLite 체크포인터로 대화 기억 (`src/agent.py`)
 - Day 4: MCP 서버 연동 — FastMCP로 도메인 도구 6종 노출, 그래프는 MCP 클라이언트로 호출 (`src/mcp_server.py`)
 - Day 5: 가드레일 — 정규식 1차 + LLM 2차로 인젝션·무관 질문·욕설 차단, 차단 후에도 대화 계속 (`src/guards.py`)
@@ -64,22 +64,23 @@ python evaluation/run_eval.py --only assign,guard   # 일부만
 ```
 
 ## RAGAS 평가 결과
-1차 (2026-11-12, `data/eval_rag.json` 20건)
-- context_recall: 0.65
-- context_precision: 0.65
-- faithfulness: 0.65
-- answer_relevancy: 0.33
+2차 최종 (2026-11-12, `data/eval_rag.json` 20건, 괄호는 1차)
+- context_recall: 0.95 (0.65)
+- context_precision: 0.95 (0.65)
+- faithfulness: 0.95 (0.65)
+- answer_relevancy: 0.43 (0.33)
 
 > `ragas` 0.4.3이 Python 3.14에서 설치·실행되지 않아(의존 패키지 scikit-network 빌드 실패, langchain_community 호환 오류)
 > `evaluation/rag_metrics.py`에서 RAGAS와 같은 정의로 직접 계산했다 (판정 Haiku 4.5, 임베딩 Titan v2).
-> 20건 중 13건은 recall·precision·faithfulness 1.0이고, 7건은 검색 단계에서 문서를 받지 못해 0점이다 (분석: `evaluation/round1_report.md`).
+> 1차는 바꿔 말한 질문 7건이 검색 단계에서 버려져 0.65였고, BM25 하이브리드 검색으로 6건을 회복해 0.95가 되었다.
+> 검색 성공 건은 recall·precision·faithfulness 모두 1.0 (분석: `evaluation/round1_report.md`, `round2_report.md`).
 
 ## 인-아웃 세트 통과율 (자체 평가)
 - 1차 (Day 9 종료): 17 / 20 통과 (85%, 목표 90% 미달) — 실패: #8 미해결 시 접수 안내 누락, #9 지원 외 제품 안내 없음, #17 재접수 안내 문구 부족
-- 2차 (Day 10 개선 후): XX / XX 통과
-- 개선폭: +XX 건 (주요 개선 사항: ...)
+- 2차 (Day 10 개선 후): 18 / 20 통과 (90%, **목표 달성**) — 남은 실패 #9·#11은 답변 판정은 통과, 정책 변경으로 기대 도구(search_faq)를 호출하지 않아 실패
+- 개선폭: +1 건 (주요 개선 사항: BM25 하이브리드 검색, 미해결 시 접수 안내 문구, 새 접수 안내 문구, 지원 외 제품 분기 → #8·#17 회복 / 안전 증상 정책으로 #11은 검색을 건너뛰어 실패로 바뀜)
 
-그 밖의 1차 지표: 기사 배정 정확도 15/15 (100%) · 가드레일 차단율 20/20 (100%) · 오차단률 0/10 (0%) · 시나리오 5/5
+그 밖의 지표 (1차 → 2차): 기사 배정 정확도 15/15 → 15/15 · 가드레일 차단율 20/20 → 20/20 · 오차단률 0/10 → 0/10 · 시나리오 5/5 → 5/5
 
 ## 트라이앤에러 회고
 - 시도했지만 실패한 접근 · 왜 실패했는가
@@ -87,15 +88,20 @@ python evaluation/run_eval.py --only assign,guard   # 일부만
   - 검색 "맞는 FAQ 없음" 기준을 FAQ 문구에 가까운 질문으로만 정함(거리 0.85) → 고객이 바꿔 말한 질문 7건을 버림. 기준을 올리면 답이 없어야 할 질문까지 통과해 단순 조정으로는 해결 불가
   - 승인 판정에 "네"를 그대로 사용 → "애매하네요"를 승인으로 오인해 예약 확정. 문장 맨 앞 단독일 때만 승인으로 수정
   - 병렬 평가에서 MCP 도구를 여러 스레드가 동시에 호출 → 교착으로 12분 정지. 호출을 잠금으로 직렬화
+  - 하이브리드 검색으로 "세탁기 타는 냄새·연기"까지 "세탁 후 냄새" FAQ에 연결됨 → 검색 점수로는 구분 불가. 안전 증상은 검색 대신 정책(사용 중지 안내 후 바로 접수)으로 처리
 - 최종 채택한 접근 · 왜 그것으로 갔는가
   - 기사 배정·해결/승인 판정·형식 검증은 LLM이 아닌 파이썬 규칙 → 결과가 매번 같고 정답 대조로 검증 가능 (배정 100%)
   - 방문 일정 확정은 `interrupt()` 기반 HITL → 고객 승인 없이 예약이 저장되지 않음을 시나리오로 확인
   - 가드레일은 정규식 1차 + LLM 2차 → 명백한 공격은 빠르게, 변형 공격은 LLM으로 (차단 100%, 오차단 0%)
+  - 검색은 벡터 + BM25 하이브리드, "두 검색이 같은 문서를 1위로 고르면 거리 기준 완화" → 바꿔 말한 질문은 살리고 답이 없어야 할 질문은 계속 거름 (RAGAS 0.65 → 0.95)
 - 남은 한계 · 향후 개선 방향
-  - (2차 개선 후 작성) 1차 계획: BM25 하이브리드 검색, 제품 동의어 보강, 지원 외 제품 분기, 안내 문구 보완
+  - 검색 기준값을 평가셋 측정값으로 정해 처음 보는 질문에서는 성능이 낮을 수 있음 → 별도 검증용 질문 세트로 일반화 확인 필요
+  - 안전 증상·지원 외 제품 판정이 정규식이라 목록에 없는 표현("스파크", "식세기")을 놓침 → LLM 2차 확인 추가
+  - 평가셋 #9·#11의 기대 도구가 초기 설계(항상 FAQ 검색) 기준이라 바뀐 정책과 어긋남 → 기준 정리 필요
+  - 평가셋 20건이 작아 1건이 5%p → 케이스 확대 필요
 
 ## 핵심 코드 위치
-- `src/agent.py:346` — 메인 에이전트 그래프 (`build_graph`), `src/agent.py:380` — 진입점 `run_turn`
+- `src/agent.py:369` — 메인 에이전트 그래프 (`build_graph`), `src/agent.py:403` — 진입점 `run_turn`
 - `src/tools.py` — 도메인 도구 (배정 규칙 `assign_technician`, 중복 확인, 저장), `src/mcp_server.py` — MCP 서버
 - `src/retriever.py` — RAG 파이프라인
 - `src/guards.py` — 가드레일·마스킹, `src/chains.py` — LCEL 구조화 출력 체인

@@ -60,6 +60,11 @@ def send(text: str) -> None:
     st.session_state.history.append({"role": "user", "content": result["question"]})
     st.session_state.history.append({"role": "assistant", "content": result["answer"]})
     st.session_state.last = result
+    if result["status"] == "상담 종료":
+        # 고객이 취소·상담 거부 → 마무리 인사를 남기고 새 상담(새 thread)으로 전환
+        st.session_state.thread_id = str(uuid.uuid4())
+        st.session_state.history.append({"role": "assistant", "content": "— 새 상담 —\n\n" + GREETING})
+        st.session_state.last = None
     st.rerun()
 
 
