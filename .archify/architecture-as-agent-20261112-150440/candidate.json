@@ -1,0 +1,480 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "전자제품 AS 접수 Agent 아키텍처",
+    "locale": "ko",
+    "output": ".archify/architecture-as-agent-20261112-150440/as-agent.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/flysyong/miniPrj.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "e3f733093bfabd5883fc026c786d53c552dd160e"
+    }
+  },
+  "components": [
+    {
+      "id": "customer",
+      "type": "external",
+      "label": "고객",
+      "sublabel": "채팅 · API 호출",
+      "pos": [
+        40,
+        292
+      ],
+      "size": [
+        120,
+        60
+      ]
+    },
+    {
+      "id": "ui",
+      "type": "frontend",
+      "label": "Streamlit · CLI",
+      "sublabel": "app.py · cli.py",
+      "pos": [
+        210,
+        170
+      ],
+      "size": [
+        160,
+        60
+      ],
+      "sources": [
+        {
+          "path": "src/app.py",
+          "line": 109,
+          "end_line": 122
+        },
+        {
+          "path": "src/cli.py",
+          "line": 10,
+          "end_line": 25
+        }
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "FastAPI",
+      "sublabel": "POST /query :8000",
+      "pos": [
+        210,
+        410
+      ],
+      "size": [
+        160,
+        60
+      ],
+      "sources": [
+        {
+          "path": "src/api.py",
+          "line": 43,
+          "end_line": 48
+        }
+      ]
+    },
+    {
+      "id": "runturn",
+      "type": "backend",
+      "label": "run_turn()",
+      "sublabel": "PII 마스킹 · 전화번호 분리",
+      "pos": [
+        450,
+        286
+      ],
+      "size": [
+        170,
+        68
+      ],
+      "sources": [
+        {
+          "path": "src/workflow/graph.py",
+          "line": 70,
+          "end_line": 98
+        },
+        {
+          "path": "src/guard/masking.py",
+          "line": 14,
+          "end_line": 26
+        }
+      ]
+    },
+    {
+      "id": "checkpoint",
+      "type": "database",
+      "label": "SQLite 체크포인터",
+      "sublabel": ".checkpoints.sqlite",
+      "pos": [
+        450,
+        540
+      ],
+      "size": [
+        170,
+        60
+      ],
+      "sources": [
+        {
+          "path": "src/workflow/graph.py",
+          "line": 60,
+          "end_line": 67
+        },
+        {
+          "path": "src/config.py",
+          "line": 41
+        }
+      ]
+    },
+    {
+      "id": "guard",
+      "type": "security",
+      "label": "guard",
+      "sublabel": "정규식 → LLM 판정",
+      "tag": "Haiku",
+      "pos": [
+        740,
+        286
+      ],
+      "size": [
+        150,
+        68
+      ],
+      "sources": [
+        {
+          "path": "src/guard/nodes.py",
+          "line": 7,
+          "end_line": 14
+        },
+        {
+          "path": "src/guard/rules.py",
+          "line": 35,
+          "end_line": 49
+        }
+      ]
+    },
+    {
+      "id": "consult",
+      "type": "backend",
+      "label": "consult 상담",
+      "sublabel": "제품 판정 · 자가 조치 답변",
+      "pos": [
+        990,
+        170
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/consult/nodes.py",
+          "line": 19,
+          "end_line": 58
+        },
+        {
+          "path": "src/consult/products.py",
+          "line": 63,
+          "end_line": 79
+        }
+      ]
+    },
+    {
+      "id": "booking",
+      "type": "backend",
+      "label": "booking 접수",
+      "sublabel": "정보 추출 · 배정 · HITL",
+      "tag": "interrupt()",
+      "pos": [
+        990,
+        410
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/booking/nodes.py",
+          "line": 34,
+          "end_line": 94
+        },
+        {
+          "path": "src/booking/nodes.py",
+          "line": 157,
+          "end_line": 172
+        },
+        {
+          "path": "src/booking/service_area.py",
+          "line": 64,
+          "end_line": 69
+        }
+      ]
+    },
+    {
+      "id": "bedrock",
+      "type": "cloud",
+      "label": "AWS Bedrock",
+      "sublabel": "Sonnet 4.5 → Haiku 예비",
+      "pos": [
+        990,
+        40
+      ],
+      "size": [
+        180,
+        60
+      ],
+      "sources": [
+        {
+          "path": "src/shared/llm.py",
+          "line": 20,
+          "end_line": 35
+        },
+        {
+          "path": "src/config.py",
+          "line": 25,
+          "end_line": 29
+        }
+      ]
+    },
+    {
+      "id": "mcp",
+      "type": "messagebus",
+      "label": "MCP 서버",
+      "sublabel": "FastMCP · 도구 6종",
+      "pos": [
+        1270,
+        286
+      ],
+      "size": [
+        170,
+        68
+      ],
+      "sources": [
+        {
+          "path": "src/mcp_server.py",
+          "line": 16,
+          "end_line": 28
+        },
+        {
+          "path": "src/mcp_server.py",
+          "line": 97,
+          "end_line": 104
+        }
+      ]
+    },
+    {
+      "id": "retriever",
+      "type": "backend",
+      "label": "하이브리드 검색",
+      "sublabel": "Titan v2 + BM25 · RRF",
+      "pos": [
+        1540,
+        170
+      ],
+      "size": [
+        170,
+        60
+      ],
+      "sources": [
+        {
+          "path": "src/consult/retriever.py",
+          "line": 99,
+          "end_line": 138
+        }
+      ]
+    },
+    {
+      "id": "chroma",
+      "type": "database",
+      "label": "FAQ 인덱스",
+      "sublabel": "Chroma · FAQ 35건",
+      "pos": [
+        1540,
+        40
+      ],
+      "size": [
+        170,
+        60
+      ],
+      "sources": [
+        {
+          "path": "src/consult/retriever.py",
+          "line": 73,
+          "end_line": 87
+        },
+        {
+          "path": "src/config.py",
+          "line": 40
+        }
+      ]
+    },
+    {
+      "id": "jsonstore",
+      "type": "database",
+      "label": "기사 · 접수 JSON",
+      "sublabel": "technicians · tickets",
+      "pos": [
+        1540,
+        410
+      ],
+      "size": [
+        170,
+        60
+      ],
+      "sources": [
+        {
+          "path": "src/booking/tools.py",
+          "line": 17,
+          "end_line": 23
+        },
+        {
+          "path": "src/booking/tools.py",
+          "line": 60,
+          "end_line": 77
+        },
+        {
+          "path": "src/config.py",
+          "line": 38,
+          "end_line": 39
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "LangGraph 그래프 (1입력 = 1턴)",
+      "wraps": [
+        "guard",
+        "consult",
+        "booking"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "c-ui",
+      "from": "customer",
+      "to": "ui",
+      "label": "채팅",
+      "variant": "emphasis"
+    },
+    {
+      "id": "c-api",
+      "from": "customer",
+      "to": "api",
+      "label": "POST /query"
+    },
+    {
+      "id": "ui-run",
+      "from": "ui",
+      "to": "runturn",
+      "label": "run_turn()",
+      "variant": "emphasis"
+    },
+    {
+      "id": "api-run",
+      "from": "api",
+      "to": "runturn",
+      "label": "run_turn()"
+    },
+    {
+      "id": "run-ckpt",
+      "from": "runturn",
+      "to": "checkpoint",
+      "label": "thread_id별 저장"
+    },
+    {
+      "id": "run-guard",
+      "from": "runturn",
+      "to": "guard",
+      "label": "invoke · resume",
+      "variant": "emphasis"
+    },
+    {
+      "id": "guard-consult",
+      "from": "guard",
+      "to": "consult",
+      "label": "stage 상담"
+    },
+    {
+      "id": "guard-booking",
+      "from": "guard",
+      "to": "booking",
+      "label": "stage 접수"
+    },
+    {
+      "id": "consult-booking",
+      "from": "consult",
+      "to": "booking",
+      "label": "미해결 · 안전 증상",
+      "variant": "dashed"
+    },
+    {
+      "id": "consult-llm",
+      "from": "consult",
+      "to": "bedrock",
+      "label": "답변 생성"
+    },
+    {
+      "id": "consult-mcp",
+      "from": "consult",
+      "to": "mcp",
+      "label": "search_faq"
+    },
+    {
+      "id": "booking-mcp",
+      "from": "booking",
+      "to": "mcp",
+      "label": "조회·배정·저장"
+    },
+    {
+      "id": "mcp-ret",
+      "from": "mcp",
+      "to": "retriever",
+      "label": "search()"
+    },
+    {
+      "id": "mcp-json",
+      "from": "mcp",
+      "to": "jsonstore",
+      "label": "읽기·쓰기"
+    },
+    {
+      "id": "ret-chroma",
+      "from": "retriever",
+      "to": "chroma",
+      "label": "벡터 + BM25"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "LLM이 하는 일",
+      "items": [
+        "자가 조치 답변: Sonnet 4.5, 실패 시 Haiku 4.5",
+        "guard 2차 판정 · 제품 판정 · 접수 정보 추출: Haiku 4.5",
+        "FAQ 임베딩: Titan v2"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "파이썬 규칙이 하는 일",
+      "items": [
+        "라우팅 · 취소 · 해결/승인 판정",
+        "형식 검증 · 지역 정규화 · 서비스 지역 판정",
+        "기사 배정: 지역+제품+근무일 → 예약 최소 → ID 순"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "HITL 승인",
+      "items": [
+        "propose 후 interrupt()로 그래프 정지",
+        "다음 입력을 Command(resume)로 이어 받음",
+        "거절 시 최대 3회 재제안, 이후 '대기' 저장"
+      ]
+    }
+  ]
+}
