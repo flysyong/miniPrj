@@ -14,6 +14,9 @@
 - Day 7: 평가 — 인-아웃 세트 LLM-as-Judge + RAGAS 4지표 + 배정 정확도 + 가드 차단율 (`evaluation/run_eval.py`)
 
 ## 아키텍처
+> 상세 다이어그램: [`.archify/architecture-as-agent-20261112-150440/as-agent.html`](.archify/architecture-as-agent-20261112-150440/as-agent.html)
+> — 노드마다 소스 코드 줄로 연결된 인터랙티브 다이어그램 (내려받아 브라우저로 열기)
+
 ```
 Streamlit 화면 · CLI · POST /query ──▶ run_turn()  (전화번호 원문 분리 + PII 마스킹)
                                           │
